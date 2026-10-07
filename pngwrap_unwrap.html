@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PngWrap - get your original file back</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #14161a;
+    --muted: #5c6470;
+    --line: #e3e6ea;
+    --accent: #1a73e8;
+    --accent-soft: #e8f0fe;
+    --ok: #1e8e3e;
+    --ok-soft: #e6f4ea;
+    --warn: #b06000;
+    --warn-soft: #fef7e0;
+    --bad: #b3261e;
+    --bad-soft: #fce8e6;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101216; --panel: #181b20; --ink: #e8eaed; --muted: #9aa0a6; --line: #2b2f36;
+      --accent: #8ab4f8; --accent-soft: #1c2634; --ok: #81c995; --ok-soft: #16281c;
+      --warn: #fdd663; --warn-soft: #2a2415; --bad: #f28b82; --bad-soft: #2d1a19;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 0 16px 72px; }
+
+  header.hero {
+    background: linear-gradient(135deg, #1a73e8 0%, #6f42c1 100%);
+    color: #fff; padding: 34px 16px 74px; margin-bottom: -50px;
+  }
+  header.hero .inner { max-width: 780px; margin: 0 auto; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: .2px; opacity: .95; }
+  .brand svg { width: 26px; height: 26px; }
+  header.hero h1 { margin: 14px 0 8px; font-size: 30px; line-height: 1.2; }
+  header.hero p { margin: 0; font-size: 16px; opacity: .93; max-width: 60ch; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
+    background: rgba(255, 255, 255, .16); border: 1px solid rgba(255, 255, 255, .28);
+    padding: 5px 11px; border-radius: 999px;
+  }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 20px; margin: 0 0 18px;
+  }
+  .card h2 { margin: 0 0 6px; font-size: 18px; }
+  .card p { margin: 0 0 12px; color: var(--muted); font-size: 15px; }
+  .card p:last-child { margin-bottom: 0; }
+
+  #drop {
+    text-align: center; padding: 40px 20px; border-radius: var(--radius);
+    border: 2px dashed var(--line); background: var(--panel); box-shadow: var(--shadow);
+    cursor: pointer; transition: border-color .15s, background .15s, transform .15s;
+  }
+  #drop:hover, #drop:focus-visible { border-color: var(--accent); outline: none; }
+  #drop.hot { border-color: var(--accent); background: var(--accent-soft); transform: scale(1.005); }
+  #drop svg { width: 44px; height: 44px; color: var(--accent); margin-bottom: 10px; }
+  #drop strong { display: block; font-size: 19px; margin-bottom: 4px; }
+  #drop span { color: var(--muted); font-size: 14px; }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > input { flex: 1 1 240px; min-width: 0; }
+  input[type=url], input[type=text] {
+    font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px 14px; width: 100%;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button {
+    font: inherit; font-weight: 600; padding: 12px 18px; border-radius: 12px;
+    border: 1px solid transparent; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--accent); border-color: var(--line); }
+  button[disabled] { opacity: .55; cursor: default; }
+
+  ol.steps { margin: 12px 0 0; padding-left: 22px; color: var(--muted); font-size: 15px; }
+  ol.steps li { margin-bottom: 6px; }
+  code {
+    background: var(--accent-soft); color: var(--ink); padding: 2px 6px; border-radius: 6px;
+    font-size: .92em; word-break: break-word;
+  }
+  .hint { background: var(--accent-soft); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: var(--ink); }
+
+  #list { margin-top: 4px; }
+  .item { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 12px; }
+  .item h3 { margin: 0 0 6px; font-size: 16px; word-break: break-all; }
+  .chip {
+    display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px; margin-right: 8px; vertical-align: middle;
+  }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); }
+  .meta { color: var(--muted); font-size: 14px; }
+  .meta.bad { color: var(--bad); }
+  .meta.ok { color: var(--ok); }
+  .item .row { margin-top: 12px; align-items: center; }
+  progress { width: 100%; height: 10px; border-radius: 999px; overflow: hidden; }
+  .bar { margin-top: 10px; font-size: 13px; color: var(--muted); }
+
+  details.note { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; }
+  details.note summary { cursor: pointer; font-weight: 600; }
+  details.note p { color: var(--muted); font-size: 14px; margin: 10px 0 0; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 26px; text-align: center; }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 12px 18px; border-radius: 12px;
+    font-size: 14px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .2s;
+    max-width: min(92vw, 520px); text-align: center;
+  }
+  .toast.show { opacity: 1; }
+  @media (max-width: 520px) {
+    header.hero h1 { font-size: 25px; }
+    #drop { padding: 30px 14px; }
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="inner">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h2.2l1.4 2h7.4A2.5 2.5 0 0 1 20 9.5v7A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/>
+        <path d="M12 15.5V9.8"/><path d="M9.7 12 12 9.7l2.3 2.3"/>
+      </svg>
+      PngWrap recovery
+    </div>
+    <h1>Get your original file back</h1>
+    <p>A wrapped file carries the original inside it. Drop it here and it comes back exactly as it was,
+       checksum verified. Nothing is uploaded - this page runs entirely in your browser and works offline.</p>
+    <div class="badges">
+      <span class="badge">Works offline</span>
+      <span class="badge">Checksum verified</span>
+      <span class="badge">No account, no upload</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="drop" tabindex="0" role="button" aria-label="Choose wrapped files">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 16V4"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/>
+    </svg>
+    <strong>Drop wrapped files here</strong>
+    <span>or click to choose them. Split files: drop all parts together.</span>
+    <input id="file" type="file" multiple accept=".png,.mp4,image/png,video/mp4" hidden>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <h2>Have a Google Photos link?</h2>
+    <p>A web page is not allowed to read another website's page for you - the browser blocks it (a rule
+       called CORS) and the file sits behind your Google session. So a link cannot be fetched inside this
+       page, by this page or any other. Two ways round it:</p>
+    <div class="row">
+      <input id="link" type="url" inputmode="url" placeholder="https://photos.app.goo.gl/..." aria-label="Google Photos share link">
+      <button id="openLink">Open the link</button>
+    </div>
+    <ol class="steps">
+      <li>Press <b>Open the link</b> above (it opens in a new tab).</li>
+      <li>In Google Photos, open the item and choose <b>Download</b> - pick <b>Original quality</b> if asked.</li>
+      <li>Come back here and <b>drop the downloaded file</b> on the box above.</li>
+    </ol>
+    <p class="hint" style="margin-top:14px">On a computer, the script does all three steps for you:<br>
+      <code>python3 pngwrap_unwrap.py --url "&lt;link&gt;"</code><br>
+      It fetches the page itself (a script is not bound by the browser rule), downloads the items and restores
+      whatever carries PngWrap data. Best effort, and it needs internet.</p>
+  </div>
+
+  <div id="list"></div>
+
+  <details class="note">
+    <summary>If a file says "re-encoded or transcoded"</summary>
+    <p>Google Photos changed the image when it backed it up - that is what <i>Storage saver</i> does - so the
+       original bytes are no longer inside. The wrapper holds fewer bytes than the original had, which is how it
+       is detected. Nothing wrong is written out.</p>
+  </details>
+  <details class="note">
+    <summary>Very large files (several GB)</summary>
+    <p>A browser has to hold the result in memory, and the page warns you above 2 GB. For a very large video use
+       <code>pngwrap_unwrap.py</code> from the same release: it streams in 1 MB steps and never loads the whole
+       file (measured: a 1.2 GB wrapper restored with 17.7 MB of memory).</p>
+  </details>
+  <details class="note">
+    <summary>How do I know the file that came out is really my original?</summary>
+    <p>Every wrapper stores the original's name, exact size and SHA-256. This page recalculates that checksum
+       while reading and refuses to save anything that does not match, so you never get a silently damaged file.
+       The script prints the same checksum.</p>
+  </details>
+
+  <footer>
+    PngWrap offline unwrapper · no network code in this page · bundles come out as a .zip
+  </footer>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script id="pngwrap-core">
+/* Pure logic, no DOM: parsing, grouping and hashing. Kept dependency free so it can be
+   tested under node (tools/test_unwrap.mjs) and used offline in any browser. */
+const CORE = (() => {
+  const MAGIC = "PNGWRAP2";
+  const MAGIC_BYTES = new TextEncoder().encode(MAGIC);
+  const PNG_SIG = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+  const CHUNK = 1 << 20;            // read and hash in 1 MB steps, so memory stays flat
+  const MAX_HEADER = 65536;
+
+  class Damage extends Error {}
+
+  const human = (n) => {
+    const u = ["B", "KB", "MB", "GB"];
+    let i = 0;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return (i === 0 ? n + " B" : n.toFixed(1) + " " + u[i]);
+  };
+
+  const readAt = async (file, start, len) =>
+    new Uint8Array(await file.slice(start, start + len).arrayBuffer());
+
+  async function utf8(file, start, len) {
+    return new TextDecoder("utf-8").decode(await readAt(file, start, len));
+  }
+
+  function sameBytes(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  /** Walks the PNG chunks to IEND, then checks the marker and reads the header. */
+  async function findPayloadPng(file) {
+    if (!sameBytes(await readAt(file, 0, 8), PNG_SIG)) return null;
+    let pos = 8;
+    for (let guard = 0; guard < 100000; guard++) {
+      const head = await readAt(file, pos, 8);
+      if (head.length < 8) return null;
+      const len = (head[0] * 0x1000000) + (head[1] << 16) + (head[2] << 8) + head[3];
+      const type = String.fromCharCode(head[4], head[5], head[6], head[7]);
+      if (len > 0x7FFFFFFF) return null;
+      pos += 12 + len;                                      // size + type + data + crc
+      if (type === "IEND") break;
+    }
+    if (!sameBytes(await readAt(file, pos, MAGIC_BYTES.length), MAGIC_BYTES)) return null;
+    return readBody(file, pos + MAGIC_BYTES.length);
+  }
+
+  /** Walks the MP4 boxes: the magic is stored as a box header, so the box type is its last 4 bytes. */
+  async function findPayloadMp4(file) {
+    const want = MAGIC.slice(4);
+    let pos = 0;
+    for (let guard = 0; guard < 100000; guard++) {
+      const head = await readAt(file, pos, 8);
+      if (head.length < 8) return null;
+      let size = (head[0] * 0x1000000) + (head[1] << 16) + (head[2] << 8) + head[3];
+      const type = String.fromCharCode(head[4], head[5], head[6], head[7]);
+      if (type === want) return readBody(file, pos + 8);
+      if (size === 1) {                                     // 64 bit box length
+        const big = await readAt(file, pos + 8, 8);
+        if (big.length < 8) return null;
+        size = 0;
+        for (let i = 0; i < 8; i++) size = size * 256 + big[i];
+        if (size < 16) return null;
+        pos += size;
+      } else if (size < 8) {
+        return null;
+      } else {
+        pos += size;
+      }
+    }
+    return null;
+  }
+
+  /** "name|size|sha" -> an object, or null when the entry is unusable. */
+  /* The app writes names with Java's URLEncoder, which is form encoding: a space arrives as '+'
+     and a literal plus as %2B. decodeURIComponent alone leaves the plus signs in the file name,
+     so "My notes.txt" would be saved as "My+notes.txt". A bare plus can only mean a space here,
+     because both writers encode a real plus as %2B. */
+  function decodeName(value) {
+    try { return decodeURIComponent(String(value).replace(/\+/g, "%20")); }
+    catch (e) { return String(value); }
+  }
+
+  function parseMember(encoded) {
+    const f = String(encoded).split("|");
+    if (f.length !== 3) return null;
+    const name = decodeName(f[0]);
+    const size = parseInt(f[1], 10);
+    if (!name || !isFinite(size) || size < 0) return null;
+    return { name, size, sha: f[2] };
+  }
+
+  async function readBody(file, pos) {
+    const raw = await readAt(file, pos, 4);
+    if (raw.length < 4) throw new Damage("file ends where the header should start");
+    const hl = (raw[0] * 0x1000000) + (raw[1] << 16) + (raw[2] << 8) + raw[3];
+    if (hl <= 0 || hl > MAX_HEADER) throw new Damage("header length looks wrong (" + hl + ")");
+    const text = await utf8(file, pos + 4, hl);
+    const meta = { id: "", name: "", size: 0, sha: "", index: 0, count: 1, wrap: "", bundle: false, members: [] };
+    const numbered = new Map();
+    for (const line of text.split("\n")) {
+      const eq = line.indexOf("=");
+      if (eq < 0) continue;
+      const k = line.slice(0, eq), v = line.slice(eq + 1);
+      if (k.length > 1 && k[0] === "m" && /^[0-9]+$/.test(k.slice(1))) { numbered.set(parseInt(k.slice(1), 10), v); continue; }
+      if (k === "bundle") { meta.bundle = (v === "1"); continue; }
+      if (k === "name") meta.name = decodeName(v);
+      else if (k === "id" || k === "sha" || k === "wrap") meta[k] = v;
+      else if (k === "size" || k === "index" || k === "count") {
+        const n = parseInt(v, 10);
+        if (!isFinite(n)) throw new Damage("header has a broken " + k + " field");
+        meta[k] = n;
+      }
+    }
+    if (!meta.id || meta.count <= 0 || meta.index < 0 || meta.index >= meta.count)
+      throw new Damage("header is incomplete or inconsistent");
+    if (meta.bundle) {
+      for (const key of [...numbered.keys()].sort((a, b) => a - b)) {
+        const one = parseMember(numbered.get(key));
+        if (!one) throw new Damage("the bundle's file list is damaged");
+        meta.members.push(one);
+      }
+      if (meta.members.length === 0) throw new Damage("the bundle lists no files");
+    }
+    meta.payloadStart = pos + 4 + hl;
+    meta.payloadBytes = file.size - meta.payloadStart;
+    return meta;
+  }
+
+  /** One wrapper file -> its header, or null when the file is not a PngWrap wrapper. */
+  async function readWrapper(file) {
+    const meta = /\.mp4$/i.test(file.name) ? await findPayloadMp4(file) : await findPayloadPng(file);
+    if (!meta) return null;
+    meta.file = file;
+    meta.fileName = file.name;
+    return meta;
+  }
+
+  /** Parts of one original share an id, ordered by index. */
+  function groupParts(list) {
+    const groups = new Map();
+    for (const m of list) {
+      if (!groups.has(m.id)) groups.set(m.id, []);
+      groups.get(m.id).push(m);
+    }
+    for (const parts of groups.values()) parts.sort((a, b) => a.index - b.index);
+    return groups;
+  }
+
+  /** Everything the UI needs to decide what to offer for one original. */
+  function plan(parts) {
+    const first = parts[0];
+    const have = parts.reduce((n, p) => n + Math.max(0, p.payloadBytes), 0);
+    const name = first.name || ("recovered-" + first.id);
+    if (first.bundle) {
+      const listed = first.members.reduce((n, m) => n + m.size, 0);
+      if (parts.length !== 1)
+        return { ok: false, name, size: first.size, reason: "a bundle is a single wrapper file, but " + parts.length + " were given" };
+      if (listed !== first.size)
+        return { ok: false, name, size: first.size, reason: "the file list adds up to " + human(listed) + " but the bundle holds " + human(first.size) };
+      return { ok: true, name, size: first.size, parts: 1, count: 1, bundle: true, members: first.members.length };
+    }
+    if (parts.length !== first.count)
+      return { ok: false, name, size: first.size, parts: parts.length, count: first.count,
+               reason: "only " + parts.length + " of " + first.count + " part(s) are here - add the missing ones" };
+    if (have < first.size)
+      return { ok: false, name, size: first.size, parts: parts.length, count: first.count,
+               reason: "the wrapper holds " + human(have) + " but the original is " + human(first.size) +
+                       " - Google Photos re-encoded or transcoded this file instead of copying it" };
+    return { ok: true, name, size: first.size, sha: first.sha, parts: parts.length, count: first.count };
+  }
+
+  /* ---- SHA-256, incremental so a huge file is hashed while it streams -------------- */
+  const K = new Uint32Array([
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+
+  class Sha256 {
+    constructor() {
+      this.h = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+      this.buf = new Uint8Array(64);
+      this.n = 0;
+      this.bytes = 0;
+      this.w = new Uint32Array(64);
+    }
+    update(data) {
+      this.bytes += data.length;
+      let i = 0;
+      if (this.n > 0) {
+        while (i < data.length && this.n < 64) this.buf[this.n++] = data[i++];
+        if (this.n === 64) { this.block(this.buf, 0); this.n = 0; }
+      }
+      while (i + 64 <= data.length) { this.block(data, i); i += 64; }
+      while (i < data.length) this.buf[this.n++] = data[i++];
+      return this;
+    }
+    block(b, off) {
+      const w = this.w;
+      for (let i = 0; i < 16; i++)
+        w[i] = (b[off + i * 4] << 24) | (b[off + i * 4 + 1] << 16) | (b[off + i * 4 + 2] << 8) | b[off + i * 4 + 3];
+      for (let i = 16; i < 64; i++) {
+        const x = w[i - 15], y = w[i - 2];
+        const s0 = ((x >>> 7) | (x << 25)) ^ ((x >>> 18) | (x << 14)) ^ (x >>> 3);
+        const s1 = ((y >>> 17) | (y << 15)) ^ ((y >>> 19) | (y << 13)) ^ (y >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+      }
+      let a = this.h[0], b2 = this.h[1], c = this.h[2], d = this.h[3];
+      let e = this.h[4], f = this.h[5], g = this.h[6], hh = this.h[7];
+      for (let i = 0; i < 64; i++) {
+        const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+        const ch = (e & f) ^ (~e & g);
+        const t1 = (hh + S1 + ch + K[i] + w[i]) >>> 0;
+        const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+        const mj = (a & b2) ^ (a & c) ^ (b2 & c);
+        const t2 = (S0 + mj) >>> 0;
+        hh = g; g = f; f = e; e = (d + t1) >>> 0;
+        d = c; c = b2; b2 = a; a = (t1 + t2) >>> 0;
+      }
+      this.h[0] = (this.h[0] + a) >>> 0; this.h[1] = (this.h[1] + b2) >>> 0;
+      this.h[2] = (this.h[2] + c) >>> 0; this.h[3] = (this.h[3] + d) >>> 0;
+      this.h[4] = (this.h[4] + e) >>> 0; this.h[5] = (this.h[5] + f) >>> 0;
+      this.h[6] = (this.h[6] + g) >>> 0; this.h[7] = (this.h[7] + hh) >>> 0;
+    }
+    hex() {
+      const bitLen = this.bytes * 8;
+      const pad = new Uint8Array(((this.n < 56) ? 56 : 120) - this.n + 8);
+      pad[0] = 0x80;
+      for (let i = 0; i < 8; i++) pad[pad.length - 1 - i] = Math.floor(bitLen / Math.pow(2, 8 * i)) & 0xFF;
+      this.update(pad);
+      let s = "";
+      for (let i = 0; i < 8; i++) s += ("00000000" + this.h[i].toString(16)).slice(-8);
+      return s;
+    }
+  }
+
+  /** Reads the payload back out of every part, in order, while hashing it. Small files / tests. */
+  async function extractBytes(parts, onProgress) {
+    const total = parts.reduce((n, p) => n + p.payloadBytes, 0);
+    const out = new Uint8Array(total);
+    const sha = new Sha256();
+    let written = 0;
+    for (const p of parts) {
+      let left = p.payloadBytes, pos = p.payloadStart;
+      while (left > 0) {
+        const take = Math.min(CHUNK, left);
+        const buf = await readAt(p.file, pos, take);
+        if (buf.length === 0) break;
+        sha.update(buf);
+        out.set(buf, written);
+        written += buf.length; pos += buf.length; left -= buf.length;
+        if (onProgress) onProgress(written, total);
+      }
+    }
+    return { bytes: out.subarray(0, written), hex: sha.hex(), written };
+  }
+
+  /** The same read, but hashing only - used before offering a download of a large file. */
+  async function hashPayload(parts, onProgress) {
+    const total = parts.reduce((n, p) => n + Math.max(0, p.payloadBytes), 0);
+    const sha = new Sha256();
+    let written = 0;
+    for (const p of parts) {
+      let left = p.payloadBytes, pos = p.payloadStart;
+      while (left > 0) {
+        const buf = await readAt(p.file, pos, Math.min(CHUNK, left));
+        if (buf.length === 0) break;
+        sha.update(buf);
+        written += buf.length; pos += buf.length; left -= buf.length;
+        if (onProgress) onProgress(written, total);
+      }
+    }
+    return { hex: sha.hex(), written };
+  }
+
+  /* ---- CRC-32, needed to write a ZIP that every tool can open ---------------------- */
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  class Crc32 {
+    constructor() { this.c = 0xFFFFFFFF; }
+    update(buf) {
+      let c = this.c;
+      for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+      this.c = c;
+      return this;
+    }
+    value() { return (this.c ^ 0xFFFFFFFF) >>> 0; }
+  }
+
+  const utf8Bytes = (s) => new TextEncoder().encode(s);
+
+  function dosDateTime(d) {
+    const time = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() / 2)) & 0xFFFF;
+    const date = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+    return { time, date };
+  }
+
+  function localHeader(name, crc, size, when) {
+    const n = utf8Bytes(name);
+    const b = new Uint8Array(30 + n.length);
+    const v = new DataView(b.buffer);
+    v.setUint32(0, 0x04034b50, true);
+    v.setUint16(4, 20, true);            // version needed
+    v.setUint16(6, 0x0800, true);        // UTF-8 names
+    v.setUint16(8, 0, true);             // stored, no compression
+    v.setUint16(10, when.time, true);
+    v.setUint16(12, when.date, true);
+    v.setUint32(14, crc, true);
+    v.setUint32(18, size, true);
+    v.setUint32(22, size, true);
+    v.setUint16(26, n.length, true);
+    v.setUint16(28, 0, true);
+    b.set(n, 30);
+    return b;
+  }
+
+  function centralHeader(name, crc, size, offset, when) {
+    const n = utf8Bytes(name);
+    const b = new Uint8Array(46 + n.length);
+    const v = new DataView(b.buffer);
+    v.setUint32(0, 0x02014b50, true);
+    v.setUint16(4, 20, true);            // version made by
+    v.setUint16(6, 20, true);            // version needed
+    v.setUint16(8, 0x0800, true);
+    v.setUint16(10, 0, true);
+    v.setUint16(12, when.time, true);
+    v.setUint16(14, when.date, true);
+    v.setUint32(16, crc, true);
+    v.setUint32(20, size, true);
+    v.setUint32(24, size, true);
+    v.setUint16(28, n.length, true);
+    v.setUint16(30, 0, true);
+    v.setUint16(32, 0, true);
+    v.setUint16(34, 0, true);
+    v.setUint16(36, 0, true);
+    v.setUint32(38, 0, true);
+    v.setUint32(42, offset, true);
+    b.set(n, 46);
+    return b;
+  }
+
+  function endOfCentralDirectory(count, cdSize, cdOffset) {
+    const b = new Uint8Array(22);
+    const v = new DataView(b.buffer);
+    v.setUint32(0, 0x06054b50, true);
+    v.setUint16(4, 0, true);
+    v.setUint16(6, 0, true);
+    v.setUint16(8, count, true);
+    v.setUint16(10, count, true);
+    v.setUint32(12, cdSize, true);
+    v.setUint32(16, cdOffset, true);
+    v.setUint16(20, 0, true);
+    return b;
+  }
+
+  /** Reads one member's bytes out of a bundle, hashing and CRC-ing as it goes. */
+  async function readMember(part, member, onProgress, done) {
+    const sha = new Sha256();
+    const crc = new Crc32();
+    let left = member.size, pos = part.payloadStart + done;
+    while (left > 0) {
+      const buf = await readAt(part.file, pos, Math.min(CHUNK, left));
+      if (buf.length === 0) throw new Damage("the bundle ends early inside " + member.name);
+      sha.update(buf); crc.update(buf);
+      pos += buf.length; left -= buf.length;
+      if (onProgress) onProgress(done + member.size - left);
+    }
+    return { hex: sha.hex(), crc: crc.value(), size: member.size };
+  }
+
+  /**
+   * Unpacks a bundle into a ZIP: every member is verified first, then its bytes are added to the
+   * archive straight from disk, so nothing large is held in memory and no silent corruption slips
+   * through. Returns the entries that passed and the ones that did not.
+   */
+  async function bundleZip(part, onProgress) {
+    const when = dosDateTime(new Date());
+    const pieces = [], entries = [], skipped = [];
+    let offset = 0, done = 0;
+    for (const member of part.members) {
+      let got;
+      try {
+        got = await readMember(part, member, (n) => onProgress && onProgress(n), done);
+      } catch (e) {
+        skipped.push([member.name, e.message]);
+        break;                                        // the payload is sequential: stop here
+      }
+      if (member.sha && got.hex !== member.sha) {
+        skipped.push([member.name, "checksum mismatch"]);
+      } else {
+        const header = localHeader(member.name, got.crc, member.size, when);
+        pieces.push(header, part.file.slice(part.payloadStart + done, part.payloadStart + done + member.size));
+        entries.push({ name: member.name, crc: got.crc, size: member.size, offset });
+        offset += header.length + member.size;
+      }
+      done += member.size;
+    }
+    let cdSize = 0;
+    const central = [];
+    for (const e of entries) {
+      const h = centralHeader(e.name, e.crc, e.size, e.offset, when);
+      central.push(h);
+      cdSize += h.length;
+    }
+    for (const h of central) pieces.push(h);
+    pieces.push(endOfCentralDirectory(entries.length, cdSize, offset));
+    return { blob: new Blob(pieces), entries: entries.map((e) => e.name), skipped };
+  }
+
+  /** A Blob built from file slices: the browser streams it from disk, no copy in memory. */
+  function outputBlob(parts) {
+    return new Blob(parts.map((p) => p.file.slice(p.payloadStart)));
+  }
+
+  return { MAGIC, Damage, human, readWrapper, groupParts, plan, extractBytes, hashPayload, outputBlob, Sha256,
+           Crc32, bundleZip, parseMember };
+})();
+if (typeof module !== "undefined" && module.exports) module.exports = CORE;
+</script>
+
+<script>
+/* The page: pick or drop files, read their headers, verify, save. No network, no dependencies. */
+(() => {
+  const drop = document.getElementById("drop");
+  const picker = document.getElementById("file");
+  const list = document.getElementById("list");
+  const toastEl = document.getElementById("toast");
+  const linkInput = document.getElementById("link");
+  const openLink = document.getElementById("openLink");
+
+  const toast = (msg, ms) => {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toastEl.classList.remove("show"), ms || 3200);
+  };
+
+  drop.addEventListener("click", () => picker.click());
+  drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); picker.click(); } });
+  picker.addEventListener("change", () => handle([...picker.files]));
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("hot"); }));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("hot"); }));
+  drop.addEventListener("drop", (e) => {
+    const files = [...e.dataTransfer.files];
+    if (files.length) handle(files);
+  });
+
+  openLink.addEventListener("click", () => {
+    const raw = linkInput.value.trim();
+    const looksLikeLink = /^https?:\/\//i.test(raw);
+    if (!looksLikeLink) {
+      toast("Paste a Google Photos share link first, or just drop the downloaded file above.");
+      linkInput.focus();
+      return;
+    }
+    window.open(raw, "_blank", "noopener");
+    toast("Opened in a new tab. In Photos choose Download, then drop the file on the box above.", 6000);
+  });
+  linkInput.addEventListener("keydown", (e) => { if (e.key === "Enter") openLink.click(); });
+
+  const safeName = (s) => String(s).replace(/[\\/:*?"<>|]/g, "_");
+
+  const save = (blob, name) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+
+  function item(title, chipText, chipKind, meta, metaKind) {
+    const el = document.createElement("div");
+    el.className = "item";
+    const h = document.createElement("h3");
+    if (chipText) {
+      const c = document.createElement("span");
+      c.className = "chip " + chipKind;
+      c.textContent = chipText;
+      h.appendChild(c);
+    }
+    h.appendChild(document.createTextNode(title));
+    el.appendChild(h);
+    const m = document.createElement("div");
+    m.className = "meta" + (metaKind ? " " + metaKind : "");
+    m.textContent = meta || "";
+    el.appendChild(m);
+    list.appendChild(el);
+    return { el, meta: m };
+  }
+
+  async function handle(files) {
+    list.innerHTML = "";
+    const metas = [];
+    for (const f of files) {
+      let m = null;
+      try {
+        m = await CORE.readWrapper(f);
+      } catch (e) {
+        item(f.name, "damaged", "bad", "This file looks like a PngWrap file but its header cannot be read: " + e.message);
+        continue;
+      }
+      if (m) metas.push(m);
+      else item(f.name, "not a wrapper", "warn", "No PngWrap data inside, so there is nothing to restore. Was it re-uploaded through Photos?");
+    }
+    if (metas.length === 0) return;
+
+    for (const parts of CORE.groupParts(metas).values()) {
+      const p = CORE.plan(parts);
+      const huge = p.size > 2 * 1024 * 1024 * 1024;
+      const detail = CORE.human(p.size)
+        + (p.bundle ? " - one wrapper holding " + p.members + " files, saved as a .zip"
+                    : (p.count > 1 ? " - " + parts.length + " of " + p.count + " parts" : ""))
+        + (huge ? " - very large, so the browser may refuse it; the script handles this size reliably" : "");
+
+      if (!p.ok) {
+        item(p.name, "cannot be rebuilt", "bad", detail + ". " + p.reason);
+        continue;
+      }
+
+      const row = item(p.name, "ready", "ok", detail);
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      const prog = document.createElement("progress");
+      prog.max = 100; prog.value = 0;
+      bar.appendChild(prog);
+      const txt = document.createElement("div");
+      bar.appendChild(txt);
+      row.el.appendChild(bar);
+
+      const actions = document.createElement("div");
+      actions.className = "row";
+      const b = document.createElement("button");
+      b.textContent = p.bundle ? "Save all as .zip" : "Save original";
+      b.onclick = async () => {
+        b.disabled = true;
+        const was = b.textContent;
+        b.textContent = "Checking...";
+        try {
+          const onProg = (done, total) => {
+            prog.value = total ? (done / total) * 100 : 0;
+            txt.textContent = "reading and verifying " + CORE.human(done) + " of " + CORE.human(total);
+          };
+          if (p.bundle) {
+            const z = await CORE.bundleZip(parts[0], onProg);
+            if (z.entries.length === 0) throw new Error("no file inside the bundle passed its checksum");
+            save(z.blob, safeName(p.name) + ".zip");
+            row.meta.className = "meta ok";
+            row.meta.textContent = "saved " + z.entries.length + " file(s) as a .zip"
+              + (z.skipped.length ? "; skipped " + z.skipped.map(([n, w]) => n + " (" + w + ")").join(", ") : "");
+            toast("Saved " + safeName(p.name) + ".zip");
+          } else {
+            const res = await CORE.hashPayload(parts, onProg);
+            if (p.sha && res.hex !== p.sha) throw new Error("checksum mismatch - nothing was saved");
+            save(CORE.outputBlob(parts), p.name);
+            row.meta.className = "meta ok";
+            row.meta.textContent = detail + " - saved, checksum verified";
+            toast("Saved " + p.name);
+          }
+          bar.remove();
+        } catch (e) {
+          row.meta.className = "meta bad";
+          row.meta.textContent = "Could not rebuild this file: " + e.message;
+        } finally {
+          b.disabled = false;
+          b.textContent = was;
+        }
+      };
+      actions.appendChild(b);
+      row.el.appendChild(actions);
+    }
+  }
+})();
+</script>
+</body>
+</html>
